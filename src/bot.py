@@ -90,8 +90,7 @@ async def handle_message(update: Update, _context) -> None:
 
     try:
         agent = get_agent(uid)
-        # Run Gemini in a thread so it doesn't block the event loop
-        reply = await asyncio.to_thread(agent.chat, text)
+        reply = agent.chat(text)
 
         await update.message.reply_text(reply, parse_mode="Markdown")
     except Exception as e:

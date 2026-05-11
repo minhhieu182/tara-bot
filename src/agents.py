@@ -99,7 +99,7 @@ class Agent:
         self.system = SYSTEM_PROMPT
         self.history: list[Content] = []
 
-    async def chat(self, user_message: str) -> str:
+    def chat(self, user_message: str) -> str:
         """Send user message, execute tool calls if needed, return response."""
         user_content = Content(role="user", parts=[Part(text=user_message)])
         messages = [Content(role="user", parts=[Part(text=self.system)])]
