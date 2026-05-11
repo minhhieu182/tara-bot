@@ -1,0 +1,74 @@
+name: Flight Monitor
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # daily 9AM Vietnam time (UTC+7)
+  workflow_dispatch:       # allow manual run
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check flights
+        env:
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python -m pip install httpx
+          python -c "
+import httpx, os
+
+chat_id = os.environ['TELEGRAM_CHAT_ID']
+token = os.environ['TELEGRAM_TOKEN']
+serpapi = os.environ['SERPAPI_KEY']
+gemini = os.environ.get('GEMINI_API_KEY', '')
+
+routes = [
+    ('SGN', 'HAN', 'Sài Gòn → Hà Nội'),
+    ('SGN', 'DAD', 'Sài Gòn → Đà Nẵng'),
+    ('SGN', 'PQC', 'Sài Gòn → Phú Quốc'),
+    ('HAN', 'SGN', 'Hà Nội → Sài Gòn'),
+]
+
+for dep, arr, label in routes:
+    params = {
+        'engine': 'google_flights',
+        'departure_id': dep,
+        'arrival_id': arr,
+        'outbound_date': 'next friday',  # handle by Gemini or fixed
+        'return_date': 'next friday + 5',
+        'adults': 1,
+        'currency': 'VND',
+        'api_key': serpapi,
+    }
+
+    try:
+        r = httpx.get(
+            'https://serpapi.com/search.json',
+            params=params,
+            timeout=15
+        )
+        data = r.json()
+        best = data.get('best_flights', [])
+        prices = [f.get('price', 0) for f in best]
+        min_price = min(prices) if prices else 'N/A'
+        if isinstance(min_price, int) and min_price > 0:
+            min_price = f'{min_price:,} VND'
+        msg = f'✈️ {label}\n💵 Rẻ nhất: {min_price}'
+    except Exception as exc:
+        msg = f'⚠️ {label}: Lỗi - {exc}'
+
+    url = f'https://api.telegram.org/bot{token}/sendMessage'
+    httpx.post(url, json={
+        'chat_id': chat_id,
+        'text': msg,
+        'parse_mode': 'Markdown',
+    })
+"

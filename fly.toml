@@ -1,0 +1,15 @@
+app = "tara-bot"
+primary_region = "sin"
+
+[env]
+TELEGRAM_TOKEN = ""
+GEMINI_API_KEY = ""
+SERPAPI_KEY = ""
+ALLOWED_USER_ID = ""
+
+[http_service]
+internal_port = 8080
+force_https = true
+auto_stop_machines = false  # keep running 24/7
+auto_start_machines = true
+min_machines_running = 1
