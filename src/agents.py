@@ -95,8 +95,8 @@ class Agent:
     def __init__(self):
         api_key = Config.gemini_api_key
         self.client = genai.Client(api_key=api_key)
-        # Use gemini-1.5-flash for higher free tier rate limits
-        self.model = "gemini-1.5-flash"
+        # gemini-1.5-flash returns 404 in google-genai v2 API
+        self.model = "gemini-2.0-flash"
         self.system = SYSTEM_PROMPT
         self.history: list[Content] = []
 
