@@ -95,23 +95,20 @@ class Agent:
     def __init__(self):
         api_key = Config.gemini_api_key
         self.client = genai.Client(api_key=api_key)
-        self.model = "gemini-2.0-flash"
+        # Use gemini-1.5-flash for higher free tier rate limits
+        self.model = "gemini-1.5-flash"
         self.system = SYSTEM_PROMPT
         self.history: list[Content] = []
 
     def chat(self, user_message: str) -> str:
         """Send user message, execute tool calls if needed, return response."""
+        import time
         user_content = Content(role="user", parts=[Part(text=user_message)])
         messages = [Content(role="user", parts=[Part(text=self.system)])]
         messages.extend(self.history)
         messages.append(user_content)
 
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=messages,
-            config={"tools": ALL_TOOLS},
-        )
-
+        response = self._gen_with_retry(messages)
         candidate = response.candidates[0]
         part = candidate.content.parts[0]
 
@@ -119,7 +116,6 @@ class Agent:
         if part.function_call:
             result = handle_tool_call(part)
 
-            # Send tool result back to Gemini for final response
             tool_response = Content(
                 role="user",
                 parts=[
@@ -135,22 +131,33 @@ class Agent:
             messages.append(Content(role="model", parts=[part]))
             messages.append(tool_response)
 
-            final = self.client.models.generate_content(
-                model=self.model,
-                contents=messages,
-                config={"tools": ALL_TOOLS},
-            )
+            final = self._gen_with_retry(messages)
             final_part = final.candidates[0].content.parts[0]
             reply = final_part.text
 
-            # Save to history
             self.history.append(user_content)
             self.history.append(final.candidates[0].content)
-
             return reply
 
-        # No tool call — direct response
         reply = part.text
         self.history.append(user_content)
         self.history.append(candidate.content)
         return reply
+
+    def _gen_with_retry(self, messages: list) -> object:
+        """Call Gemini with retry on 429 rate limit."""
+        for attempt in range(3):
+            try:
+                return self.client.models.generate_content(
+                    model=self.model,
+                    contents=messages,
+                    config={"tools": ALL_TOOLS},
+                )
+            except Exception as exc:
+                if "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc):
+                    import time
+                    wait = 30 * (attempt + 1)
+                    time.sleep(wait)
+                    continue
+                raise  # non-rate-limit error
+        raise Exception("Gemini API: rate limit exceeded after 3 retries")
