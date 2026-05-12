@@ -19,16 +19,23 @@ jobs:
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python -m pip install httpx
           python -c "
 import httpx, os
+from datetime import date, timedelta
 
 chat_id = os.environ['TELEGRAM_CHAT_ID']
 token = os.environ['TELEGRAM_TOKEN']
 serpapi = os.environ['SERPAPI_KEY']
-gemini = os.environ.get('GEMINI_API_KEY', '')
+
+# Calculate this Friday
+today = date.today()
+days_ahead = (4 - today.weekday()) % 7
+if days_ahead == 0:
+    days_ahead = 7
+friday = today + timedelta(days=days_ahead)
+sunday = friday + timedelta(days=2)
 
 routes = [
     ('SGN', 'HAN', 'Sài Gòn → Hà Nội'),
@@ -42,8 +49,8 @@ for dep, arr, label in routes:
         'engine': 'google_flights',
         'departure_id': dep,
         'arrival_id': arr,
-        'outbound_date': 'next friday',  # handle by Gemini or fixed
-        'return_date': 'next friday + 5',
+        'outbound_date': friday.isoformat(),
+        'return_date': sunday.isoformat(),
         'adults': 1,
         'currency': 'VND',
         'api_key': serpapi,
@@ -61,7 +68,7 @@ for dep, arr, label in routes:
         min_price = min(prices) if prices else 'N/A'
         if isinstance(min_price, int) and min_price > 0:
             min_price = f'{min_price:,} VND'
-        msg = f'✈️ {label}\n💵 Rẻ nhất: {min_price}'
+        msg = f'✈️ {label}\n📅 {friday}→{sunday}\n💵 Rẻ nhất: {min_price}'
     except Exception as exc:
         msg = f'⚠️ {label}: Lỗi - {exc}'
 

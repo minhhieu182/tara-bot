@@ -16,10 +16,10 @@
 - Sign up → Dashboard copy key
 - Free: 500 searches/tháng — đủ cho 1 bot + daily check
 
-### 1.4 Gemini API Key
-- Vào https://aistudio.google.com/app/apikey
-- Create API key (free)
-- Dùng model `gemini-2.0-flash` (free tier)
+### 1.4 Anthropic API Key
+- Vào https://console.anthropic.com/settings/keys
+- Create key (free $3 credit)
+- Dùng model `claude-sonnet-4-6`
 
 ---
 
@@ -45,7 +45,7 @@ fly launch --from Dockerfile --name tara-bot-yourname
 ```bash
 fly secrets set \
   TELEGRAM_TOKEN=your_bot_token \
-  GEMINI_API_KEY=your_gemini_key \
+  ANTHROPIC_API_KEY=your_anthropic_key \
   SERPAPI_KEY=your_serpapi_key \
   ALLOWED_USER_ID=your_telegram_id
 ```
@@ -74,7 +74,7 @@ Bot chat chạy trên Fly.io. Monitor chạy trên GitHub Actions (free).
   - `SERPAPI_KEY`
   - `TELEGRAM_TOKEN`
   - `TELEGRAM_CHAT_ID` (user ID của bạn)
-  - `GEMINI_API_KEY`
+  - `ANTHROPIC_API_KEY`
 
 ### 3.2 Enable workflow
 - Actions tab → "Flight Monitor" → Enable
@@ -109,6 +109,6 @@ fly deploy
 |---------|------|---------|
 | Fly.io | $0 | Free tier: 3 VMs 256MB |
 | SerpAPI | $0 | Free: 500 req/tháng |
-| Gemini API | $0 | Free tier |
+| Claude (Anthropic) | $0 | Free $3 credit, ~$0.50/tháng |
 | GitHub Actions | $0 | Public repo free |
 | **Total** | **$0/tháng** | |
