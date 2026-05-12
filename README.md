@@ -14,11 +14,11 @@
 
 | Tính năng | Mô tả | Trạng thái |
 |-----------|-------|------------|
-| 💬 **Chat tự nhiên** | Hỏi "tìm vé SG Đà Nẵng cuối tuần" — Gemini hiểu, SerpAPI search | ✅ |
+| 💬 **Chat tự nhiên** | Hỏi "tìm vé SG Đà Nẵng cuối tuần" — Claude hiểu, SerpAPI search | ✅ |
 | ✈️ **Tra cứu chuyến bay** | Giá, hãng, giờ bay real-time từ Google Flights | ✅ |
 | 🛒 **So sánh giá đồ** | Search sản phẩm, so sánh từ nhiều nguồn | ✅ |
 | 🔔 **Daily monitor** | Mỗi sáng check giá các tuyến quen thuộc, gửi alert | ✅ |
-| 🧠 **Context-aware** | Gemini nhớ lịch sủ chat trong session | ✅ |
+| 🧠 **Context-aware** | Claude nhớ lịch sử chat trong session | ✅ |
 | 🔗 **Affiliate inject** | Tự động thêm affiliate link vào kết quả | ✅ |
 | 🆕 **Shopee cào giá** | *(coming soon)* |
 
@@ -41,11 +41,11 @@
 ## 🧱 Tech stack
 
 ```
-┌──────────┐     ┌──────────┐     ┌──────────┐
-│ Telegram │ ←→ │  Gemini  │ ←→ │ SerpAPI  │
-│   Bot    │     │  Flash   │     │(Flights+ │
-│          │     │(Tool-call│     │ Shopping)│
-└──────────┘     └──────────┘     └──────────┘
+┌──────────┐     ┌───────────┐     ┌──────────┐
+│ Telegram │ ←→ │  Claude   │ ←→ │ SerpAPI  │
+│   Bot    │     │ Sonnet 4.6│     │(Flights+ │
+│          │     │(Tool-call)│     │ Shopping)│
+└──────────┘     └───────────┘     └──────────┘
                        ↕
                  ┌──────────┐
                  │ GitHub   │
@@ -55,8 +55,8 @@
 ```
 
 - **Telegram Bot** — python-telegram-bot v20+
-- **Gemini Flash** — NLU + tool-calling (free tier)
-- **SerpAPI** — Google Flights + Google Shopping (500 free/tháng)
+- **Claude Sonnet 4.6** — NLU + tool-calling (Anthropic API)
+- **SerpAPI** — Google Flights + Google Shopping (250 free/tháng)
 - **Fly.io** — host 24/7 (free tier)
 - **GitHub Actions** — daily cron monitor (free)
 
@@ -66,11 +66,11 @@
 2. **Get API keys**:
    - [@BotFather](https://t.me/botfather) → tạo bot → copy token
    - [SerpAPI](https://serpapi.com) → sign up → copy key (500 free/tháng)
-   - [Gemini API](https://aistudio.google.com/app/apikey) → copy key (free)
+   - [Anthropic API](https://console.anthropic.com/settings/keys) → copy key
 3. **Deploy lên Fly.io**:
    ```bash
    fly launch --from Dockerfile
-   fly secrets set TELEGRAM_TOKEN=xxx GEMINI_API_KEY=xxx SERPAPI_KEY=xxx ALLOWED_USER_ID=xxx
+   fly secrets set TELEGRAM_TOKEN=xxx ANTHROPIC_API_KEY=xxx SERPAPI_KEY=xxx ALLOWED_USER_ID=xxx
    fly deploy
    ```
 4. **Bật monitor**:
@@ -84,7 +84,7 @@
 ```
 src/
 ├── bot.py              # Telegram bot entry point
-├── agents.py           # Gemini agent + tool-calling
+├── agents.py           # Claude agent + tool-calling
 ├── config.py           # Env config loader
 └── tools/
     └── serpapi.py      # Flight + shopping search
