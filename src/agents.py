@@ -1,86 +1,22 @@
-"""Gemini agent with tool-calling for flight and shopping search."""
+"""Claude agent with tool-calling for flight and shopping search."""
 
 from __future__ import annotations
 
-from google import genai
-from google.genai.types import FunctionDeclaration, Tool, Part, Content, Schema
+import json
+from typing import Any
+
+from anthropic import Anthropic
+from anthropic.types import ToolUseBlock, TextBlock
 
 from .config import Config
 from .tools.serpapi import search_flights, search_shopping
 
 
-# ── Gemini tool declarations ──────────────────────────────────────────
+from datetime import date
 
-FLIGHT_DECL = FunctionDeclaration(
-    name="search_flights",
-    description="Tìm chuyến bay. Trả về giá, hãng, giờ bay.",
-    parameters=Schema(
-        type="OBJECT",
-        properties={
-            "departure_id": Schema(
-                type="STRING", description="Mã sân bay đi (IATA). Mặc định SGN"
-            ),
-            "arrival_id": Schema(
-                type="STRING", description="Mã sân bay đến (IATA)"
-            ),
-            "outbound_date": Schema(
-                type="STRING",
-                description="Ngày đi (YYYY-MM-DD). Mặc định thứ 6 tuần sau.",
-            ),
-            "return_date": Schema(
-                type="STRING",
-                description="Ngày về (YYYY-MM-DD). Mặc định đi + 5 ngày.",
-            ),
-            "adults": Schema(
-                type="INTEGER",
-                description="Số người lớn. Mặc định 1.",
-            ),
-        },
-        required=[],
-    ),
-)
+TODAY = date.today()  # 2026-05-12
 
-SHOPPING_DECL = FunctionDeclaration(
-    name="search_shopping",
-    description="Tìm sản phẩm, so sánh giá. Hữu ích khi user hỏi về giá đồ.",
-    parameters=Schema(
-        type="OBJECT",
-        properties={
-            "query": Schema(
-                type="STRING",
-                description="Tên sản phẩm cần tìm (VD: iPhone 16, máy lọc không khí)",
-            ),
-        },
-        required=["query"],
-    ),
-)
-
-FLIGHT_TOOL = Tool(function_declarations=[FLIGHT_DECL])
-SHOPPING_TOOL = Tool(function_declarations=[SHOPPING_DECL])
-ALL_TOOLS = [FLIGHT_TOOL, SHOPPING_TOOL]
-
-# ── Tool call dispatch ────────────────────────────────────────────────
-
-TOOL_FUNCTIONS = {
-    "search_flights": search_flights,
-    "search_shopping": search_shopping,
-}
-
-
-def handle_tool_call(part: Part) -> str:
-    """Execute a tool call from Gemini and return result."""
-    fc = part.function_call
-    name = fc.name
-    args = {k: v for k, v in fc.args.items()}
-    fn = TOOL_FUNCTIONS.get(name)
-    if not fn:
-        return f"Unknown tool: {name}"
-    return fn(**args)
-
-
-# ── Chat session ──────────────────────────────────────────────────────
-
-SYSTEM_PROMPT = """Bạn là Tara Bot — một agent thông minh chuyên tìm kiếm chuyến bay và săn giá đồ.
+SYSTEM_PROMPT = f"""Bạn là Tara Bot — một agent thông minh chuyên tìm kiếm chuyến bay và săn giá đồ.
 
 NGUYÊN TẮC:
 - Trả lời bằng tiếng Việt tự nhiên, thân thiện.
@@ -88,76 +24,147 @@ NGUYÊN TẮC:
 - Khi user hỏi giá sản phẩm / so sánh giá, dùng tool search_shopping.
 - Luôn trích dẫn giá và hãng cụ thể.
 - Nếu kết quả rỗng, gợi ý user thay đổi ngày/thành phố.
-- Có thể nói chuyện thông thường (chào hỏi, tạm biệt) — không cần gọi tool."""
+- Có thể nói chuyện thông thường (chào hỏi, tạm biệt) — không cần gọi tool.
+
+Hôm nay là {TODAY.strftime("%A, %d/%m/%Y")} — ĐÂY LÀ MỐC THỜI GIAN HIỆN TẠI.
+Mặc định cho các câu hỏi mơ hồ về thời gian:
+- "cuối tuần" → thứ Sáu tuần gần nhất (không quá khứ)
+- "tuần sau" → tuần tiếp theo
+- Nếu không rõ, lấy ngày đi và ngày về hợp lý."""
+
+# ── Tool definitions (Anthropic format) ──────────────────────────────
+
+FLIGHT_TOOL: dict = {
+    "name": "search_flights",
+    "description": "Tìm chuyến bay. Trả về giá, hãng, giờ bay.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "departure_id": {
+                "type": "string",
+                "description": "Mã sân bay đi (IATA). Mặc định SGN",
+            },
+            "arrival_id": {
+                "type": "string",
+                "description": "Mã sân bay đến (IATA)",
+            },
+            "outbound_date": {
+                "type": "string",
+                "description": "Ngày đi (YYYY-MM-DD). Mặc định thứ 6 tuần sau.",
+            },
+            "return_date": {
+                "type": "string",
+                "description": "Ngày về (YYYY-MM-DD). Mặc định đi + 5 ngày.",
+            },
+            "adults": {
+                "type": "integer",
+                "description": "Số người lớn. Mặc định 1.",
+            },
+        },
+        "required": ["arrival_id"],
+    },
+}
+
+SHOPPING_TOOL: dict = {
+    "name": "search_shopping",
+    "description": "Tìm sản phẩm, so sánh giá. Hữu ích khi user hỏi về giá đồ.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Tên sản phẩm cần tìm (VD: iPhone 16, máy lọc không khí)",
+            },
+        },
+        "required": ["query"],
+    },
+}
+
+ALL_TOOLS = [FLIGHT_TOOL, SHOPPING_TOOL]
+
+# ── Tool dispatch ────────────────────────────────────────────────────
+
+TOOL_FUNCTIONS: dict[str, Any] = {
+    "search_flights": search_flights,
+    "search_shopping": search_shopping,
+}
 
 
 class Agent:
     def __init__(self):
-        api_key = Config.gemini_api_key
-        self.client = genai.Client(api_key=api_key)
-        # gemini-1.5-flash returns 404 in google-genai v2 API
-        self.model = "gemini-2.0-flash"
+        self.client = Anthropic(api_key=Config.anthropic_api_key)
+        self.model = "claude-sonnet-4-6"
         self.system = SYSTEM_PROMPT
-        self.history: list[Content] = []
+        self.history: list[dict] = []
 
     def chat(self, user_message: str) -> str:
         """Send user message, execute tool calls if needed, return response."""
+        messages = list(self.history)
+        messages.append({"role": "user", "content": user_message})
+
+        for iteration in range(5):  # max 5 tool call loops
+            response = self._call_claude(messages)
+
+            content_blocks = response.content
+            reply_text = ""
+            has_tool_use = False
+
+            for block in content_blocks:
+                if isinstance(block, TextBlock):
+                    reply_text += block.text
+                elif isinstance(block, ToolUseBlock):
+                    has_tool_use = True
+                    result = self._execute_tool(block)
+                    messages.append({"role": "assistant", "content": content_blocks})
+                    messages.append({
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": block.id,
+                                "content": str(result),
+                            }
+                        ],
+                    })
+
+            if not has_tool_use:
+                # Done — save to history and return
+                self.history.append({"role": "user", "content": user_message})
+                self.history.append({"role": "assistant", "content": reply_text})
+                return reply_text
+
+        # Exceeded loop limit
+        return "Xin lỗi, em không thể xử lý yêu cầu này ngay bây giờ. Thử lại với câu hỏi đơn giản hơn nhé!"
+
+    def _call_claude(self, messages: list) -> Any:
+        """Make Claude API call with retry on 429."""
         import time
-        user_content = Content(role="user", parts=[Part(text=user_message)])
-        messages = [Content(role="user", parts=[Part(text=self.system)])]
-        messages.extend(self.history)
-        messages.append(user_content)
 
-        response = self._gen_with_retry(messages)
-        candidate = response.candidates[0]
-        part = candidate.content.parts[0]
-
-        # If Gemini wants to call a tool
-        if part.function_call:
-            result = handle_tool_call(part)
-
-            tool_response = Content(
-                role="user",
-                parts=[
-                    Part(
-                        function_response=Part.FunctionResponse(
-                            name=part.function_call.name,
-                            response={"result": result},
-                        )
-                    )
-                ],
-            )
-
-            messages.append(Content(role="model", parts=[part]))
-            messages.append(tool_response)
-
-            final = self._gen_with_retry(messages)
-            final_part = final.candidates[0].content.parts[0]
-            reply = final_part.text
-
-            self.history.append(user_content)
-            self.history.append(final.candidates[0].content)
-            return reply
-
-        reply = part.text
-        self.history.append(user_content)
-        self.history.append(candidate.content)
-        return reply
-
-    def _gen_with_retry(self, messages: list) -> object:
-        """Call Gemini with retry on 429 rate limit."""
         for attempt in range(3):
             try:
-                return self.client.models.generate_content(
+                return self.client.messages.create(
                     model=self.model,
-                    contents=messages,
-                    config={"tools": ALL_TOOLS},
+                    max_tokens=4000,
+                    system=self.system,
+                    messages=messages,
+                    tools=ALL_TOOLS,
                 )
             except Exception as exc:
-                if "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc):
-                    import time
+                err = str(exc)
+                if "429" in err or "rate_limit" in err.lower():
                     wait = 30 * (attempt + 1)
                     time.sleep(wait)
                     continue
-                raise  # non-rate-limit error
-        raise Exception("Gemini API: rate limit exceeded after 3 retries")
+                raise
+        raise Exception("Claude API: rate limit exceeded after 3 retries")
+
+    def _execute_tool(self, block: ToolUseBlock) -> str:
+        """Execute a tool and return the result string."""
+        fn = TOOL_FUNCTIONS.get(block.name)
+        if not fn:
+            return f"Unknown tool: {block.name}"
+        args = {k: v for k, v in block.input.items()}
+        try:
+            return fn(**args)
+        except Exception as e:
+            return f"Lỗi khi chạy {block.name}: {e}"

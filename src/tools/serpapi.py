@@ -108,7 +108,7 @@ def _format_flights(
             )
 
         airline_str = ", ".join(sorted(airlines))
-        duration_str = f"{h}h{mins}m" if hours else f"{mins}m"
+        duration_str = f"{hours}h{mins}m" if hours else f"{mins}m"
         layover_str = ""
         if layovers:
             layover_str = f"  ⏳ Quá cảnh: {', '.join(layovers)}"
