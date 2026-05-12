@@ -74,7 +74,7 @@ def search_flights(
 def _format_flights(
     data: dict, dep: str, arr: str, out: str, ret: str
 ) -> str:
-    """Format flight results into readable text."""
+    """Format flight results into compact, beautiful Telegram message."""
     best = data.get("best_flights", [])
     other = data.get("other_flights", [])
     all_flights = best + other
@@ -82,51 +82,64 @@ def _format_flights(
     if not all_flights:
         return "😕 Không tìm thấy chuyến bay nào cho tuyến này."
 
-    lines = [
-        f"✈️ *{dep} → {arr}*",
-        f"📅 {out} → {ret}",
-        "",
-    ]
+    # Parse IATA → city name
+    city_map = {"SGN": "Sài Gòn", "HAN": "Hà Nội", "DAD": "Đà Nẵng",
+                "PQC": "Phú Quốc", "CXR": "Nha Trang", "HUI": "Huế",
+                "DIN": "Điện Biên", "VII": "Vinh", "UIH": "Quy Nhơn",
+                "TBB": "Tuy Hòa", "VCA": "Cần Thơ"}
+    dep_name = city_map.get(dep, dep)
+    arr_name = city_map.get(arr, arr)
+
+    # Emoji for header
+    lines = [f"✈️ *{dep_name} → {arr_name}*"]
+    lines.append(f"📅 *{out}* → *{ret}* ({len(all_flights)} chuyến)")
+    lines.append("")
+
+    # Google Flights search link
+    gf_link = (
+        f"https://www.google.com/travel/flights?"
+        f"q=Flights+to+{arr}+from+{dep}+on+{out}+return+{ret}"
+    )
 
     for i, flight in enumerate(all_flights[:5], 1):
-        price = f"{flight.get('price', 0):,} VND"
-        airlines = set()
-        total_duration = flight.get("total_duration", 0)
-        hours, mins = divmod(total_duration, 60)
+        price = flight.get('price', 0)
+        price_fmt = f"{price:,}đ" if price < 1000000 else f"{price/1000:,.0f}K"
 
-        for leg in flight.get("flights", []):
-            airlines.add(leg.get("airline", "?"))
-            dep_time = leg.get("departure_airport", {}).get("time", "?")
-            arr_time = leg.get("arrival_airport", {}).get("time", "?")
-            layovers = flight.get("layovers", [])
+        legs = flight.get("flights", [])
+        total_min = flight.get("total_duration", 0)
+        h, m = divmod(total_min, 60)
+        duration = f"{h}h{m}" if h else f"{m}ph"
 
-            fly_line = (
-                f"  {leg.get('departure_airport', {}).get('id', '?')} "
-                f"{dep_time} → "
-                f"{leg.get('arrival_airport', {}).get('id', '?')} "
-                f"{arr_time}"
-            )
+        # Build compact per-flight block
+        stops = []
+        segments = []
+        for leg in legs:
+            airline = leg.get("airline", "?")
+            dep_t = leg.get("departure_airport", {}).get("time", "").split()[-1][:5]
+            arr_t = leg.get("arrival_airport", {}).get("time", "").split()[-1][:5]
+            dep_code = leg.get("departure_airport", {}).get("id", "")
+            arr_code = leg.get("arrival_airport", {}).get("id", "")
+            flight_no = leg.get("flight_number", "")
+            segments.append(f"{dep_t}→{arr_t}")
+            stops.append(f"{airline} {flight_no}")
 
-        airline_str = ", ".join(sorted(airlines))
-        duration_str = f"{hours}h{mins}m" if hours else f"{mins}m"
-        layover_str = ""
-        if layovers:
-            layover_str = f"  ⏳ Quá cảnh: {', '.join(layovers)}"
+        layovers = flight.get("layovers", [])
+        stop_text = f" · ⏳ {', '.join(layovers)}" if layovers else " · *Thẳng*"
+
+        # Price rank emoji
+        rank_emoji = ["🏆", "🥈", "🥉", "4️⃣", "5️⃣"][min(i - 1, 4)]
+
+        # One-line status: airline + flight_no
+        airline_line = " → ".join(stops)
 
         lines.append(
-            f"*{i}.* {airline_str} — *{price}* ({duration_str})"
+            f"{rank_emoji} *{price_fmt}* {' → '.join(segments)} ({duration})"
         )
-        lines.append(fly_line)
-        if layover_str:
-            lines.append(layover_str)
+        lines.append(f"   `{airline_line}`{stop_text}")
         lines.append("")
 
-    # Inject affiliate link
-    affiliate = Config.affiliate_template
-    if affiliate:
-        lines.append(
-            f"🔗 *Affiliate:* [Đặt vé trên {affiliate}]"
-        )
+    # Footer: Google Flights link + note
+    lines.append(f"[🔍 Xem thêm trên Google Flights]({gf_link})")
 
     return "\n".join(lines)
 
