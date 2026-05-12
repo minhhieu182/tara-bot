@@ -152,7 +152,7 @@ def search_shopping(query: str, currency: str = "VND") -> str:
         currency: currency for prices
 
     Returns:
-        Formatted product listing
+        Formatted product listing with prices, ratings, links
     """
     key = Config.serpapi_key
     params: dict[str, Any] = {
@@ -173,22 +173,44 @@ def search_shopping(query: str, currency: str = "VND") -> str:
     if not results:
         return f"😕 Không tìm thấy \"{query}\"."
 
-    lines = [f"🛒 *Kết quả tìm: {query}*", ""]
-    for i, item in enumerate(results[:8], 1):
+    lines = [f"🛒 *{query}* ({len(results)} kết quả)", ""]
+
+    # Currency symbol mapping
+    currency_symbols = {"VND": "₫", "USD": "$", "SGD": "S$", "JPY": "¥"}
+
+    for i, item in enumerate(results[:6], 1):
         title = item.get("title", "?")
         price = item.get("price", "?")
         source = item.get("source", "?")
-        rating = item.get("rating", "")
-        link = item.get("link", "")
+        rating = item.get("rating")
+        reviews = item.get("reviews", 0)
+        delivery = item.get("delivery", "")
+        link = item.get("product_link") or item.get("link", "")
 
-        stars = f" ⭐{rating}" if rating else ""
-        lines.append(f"*{i}.* {title}{stars}")
-        lines.append(f"   💰 {price} — {source}")
-        lines.append(f"   🔗 {link}")
+        # Rank emoji
+        rank = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣"][min(i - 1, 5)]
+
+        # Price highlight
+        is_cheapest = i == 1
+        price_fmt = f"*{price}* 🔥" if is_cheapest and i <= 3 else f"*{price}*"
+
+        # Rating stars
+        stars = ""
+        if rating:
+            full = int(rating)
+            stars = "⭐" * full + f" {rating}" if full > 0 else f"⭐ {rating}"
+            if reviews:
+                stars += f" ({reviews:,} đánh giá)"
+
+        # Delivery info
+        delivery_tag = f" · 🚚 {delivery}" if delivery else ""
+
+        lines.append(f"{rank} {title}")
+        lines.append(f"   💰 {price_fmt} — {source}{delivery_tag}")
+        if stars:
+            lines.append(f"   {stars}")
+        if link:
+            lines.append(f"   🔗 {link}")
         lines.append("")
-
-    affiliate = Config.affiliate_template
-    if affiliate:
-        lines.append(f"🔗 *Affiliate:* {affiliate}")
 
     return "\n".join(lines)
