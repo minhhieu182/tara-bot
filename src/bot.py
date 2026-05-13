@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 from datetime import datetime
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from telegram import Update
 from telegram.ext import (
@@ -120,12 +122,36 @@ async def uptime(update: Update, _context) -> None:
     )
 
 
+# ── Health check HTTP server (for Fly.io) ─────────────────────────────
+
+class HealthHandler(BaseHTTPRequestHandler):
+    """Minimal health endpoint so Fly.io doesn't kill the machine."""
+
+    def do_GET(self) -> None:
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"ok")
+
+    def log_message(self, fmt, *args) -> None:
+        pass  # silence log spam
+
+
+def run_health_server() -> None:
+    server = HTTPServer(("0.0.0.0", 8080), HealthHandler)
+    log.info("Health server listening on :8080")
+    server.serve_forever()
+
+
 # ── Main ─────────────────────────────────────────────────────────────
 
 def main() -> None:
     token = Config.telegram_token
     if not token:
         raise SystemExit("TELEGRAM_TOKEN not set")
+
+    # Start health server in background thread for Fly.io
+    t = threading.Thread(target=run_health_server, daemon=True)
+    t.start()
 
     app = Application.builder().token(token).build()
 

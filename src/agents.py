@@ -107,31 +107,34 @@ class Agent:
 
             content_blocks = response.content
             reply_text = ""
-            has_tool_use = False
+            tool_use_blocks = []
+            text_blocks = []
 
             for block in content_blocks:
                 if isinstance(block, TextBlock):
+                    text_blocks.append(block)
                     reply_text += block.text
                 elif isinstance(block, ToolUseBlock):
-                    has_tool_use = True
-                    result = self._execute_tool(block)
-                    messages.append({"role": "assistant", "content": content_blocks})
-                    messages.append({
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "tool_result",
-                                "tool_use_id": block.id,
-                                "content": str(result),
-                            }
-                        ],
-                    })
+                    tool_use_blocks.append(block)
 
-            if not has_tool_use:
+            if not tool_use_blocks:
                 # Done — save to history and return
                 self.history.append({"role": "user", "content": user_message})
                 self.history.append({"role": "assistant", "content": reply_text})
                 return reply_text
+
+            # Execute all tools, then append ONE assistant + ONE user with all results
+            tool_results = []
+            for block in tool_use_blocks:
+                result = self._execute_tool(block)
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": str(result),
+                })
+
+            messages.append({"role": "assistant", "content": content_blocks})
+            messages.append({"role": "user", "content": tool_results})
 
         # Exceeded loop limit
         return "Xin lỗi, em không thể xử lý yêu cầu này ngay bây giờ. Thử lại với câu hỏi đơn giản hơn nhé!"
