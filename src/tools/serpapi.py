@@ -124,7 +124,8 @@ def _format_flights(
             stops.append(f"{airline} {flight_no}")
 
         layovers = flight.get("layovers", [])
-        stop_text = f" · ⏳ {', '.join(layovers)}" if layovers else " · *Thẳng*"
+        layover_names = [l.get("name", str(l)) if isinstance(l, dict) else str(l) for l in layovers]
+        stop_text = f" · ⏳ {', '.join(layover_names)}" if layover_names else " · *Thẳng*"
 
         # Price rank emoji
         rank_emoji = ["🏆", "🥈", "🥉", "4️⃣", "5️⃣"][min(i - 1, 4)]
