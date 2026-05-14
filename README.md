@@ -10,7 +10,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-4ade80?style=flat-square)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-60a5fa?style=flat-square)](https://python.org)
 
-> Build bởi [Tara Le](https://github.com/thaolst) — AI × Growth Marketing
+> Build bởi **Lê Song Tiên Thảo** · [GitHub](https://github.com/thaolst) · [LinkedIn](https://www.linkedin.com/in/thaolst/) · [Facebook](https://www.facebook.com/LeSongTienThao)
 
 ---
 
