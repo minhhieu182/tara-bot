@@ -18,34 +18,55 @@
 
 | Tính năng | Mô tả | Trạng thái |
 |---|---|---|
-| 💬 **Chat tự nhiên** | Hỏi "tìm vé SG Đà Nẵng cuối tuần" — Claude hiểu, SerpAPI search | ✅ |
-| ✈️ **Tra cứu chuyến bay** | Giá, hãng, giờ bay real-time từ Google Flights + link Google Flights | ✅ |
-| 🛒 **So sánh giá đồ** | Search sản phẩm, so sánh giá, rating, link mua | ✅ |
-| 🔔 **Daily monitor** | 9AM mỗi sáng check giá 4 tuyến quen (SGN↔HAN, SGN↔DAD, SGN↔PQC), gửi Telegram alert | ✅ |
-| 🧠 **Context-aware** | Claude nhớ lịch sử chat trong session | ✅ |
-| ⚡ **Prompt caching** | Cache system prompt → tiết kiệm ~90% token cost từ turn 2 | ✅ |
-| 🧩 **Adaptive thinking** | Claude tự quyết dùng extended thinking khi câu hỏi phức tạp | ✅ |
-| 🔗 **Affiliate link** | Link Google Flights tự động trong mỗi kết quả tìm vé | ✅ |
-| 🆕 **Shopee cào giá** | *(coming soon)* | 🔜 |
-| 🔔 **Auto-deal alert** | Notify khi deal tốt xuất hiện | 🔜 |
-| 👥 **Multi-user** | Hỗ trợ nhiều user | 🔜 |
+| 💬 **Chat tự nhiên** | Hỏi "tìm vé SG Đà Nẵng cuối tuần" — Claude hiểu ngữ cảnh, tự gọi đúng tool | ✅ |
+| ✈️ **Tìm vé máy bay** | Giá real-time từ Google Flights, top 5 chuyến, link Google Flights | ✅ |
+| 🛒 **So sánh giá sản phẩm** | Google Shopping — giá, rating, shop, link mua trực tiếp | ✅ |
+| 🔔 **Daily price monitor** | 9AM mỗi sáng tự động check giá 4 tuyến SGN↔HAN/DAD/PQC, gửi Telegram | ✅ |
+| 🧠 **Memory trong session** | Claude nhớ toàn bộ lịch sử chat, hỏi tiếp không cần nhắc lại | ✅ |
+| ⚡ **Prompt caching** | Cache system prompt từ turn 2 → tiết kiệm ~90% token cost | ✅ |
+| 🧩 **Adaptive thinking** | Claude tự bật extended thinking khi câu hỏi phức tạp | ✅ |
+| 🔁 **Multi-turn tool loop** | Một lượt hỏi có thể gọi nhiều tool liên tiếp, tối đa 5 vòng | ✅ |
+| 🔗 **Google Flights link** | Mỗi kết quả vé kèm link tìm thêm trên Google Flights | ✅ |
+| 🛡️ **Private mode** | `ALLOWED_USER_ID` — chỉ bạn mới dùng được bot | ✅ |
+| 🔄 **Commands** | `/start` `/reset` `/uptime` | ✅ |
+| 🏥 **Health check** | HTTP endpoint cho Fly.io keepalive | ✅ |
+| 🆕 **Shopee cào giá** | | 🔜 |
+| 🔔 **Auto-deal alert** | Notify khi giá rẻ hơn ngưỡng đặt | 🔜 |
+| 👥 **Multi-user** | | 🔜 |
 
 ---
 
 ## 🎬 Demo
 
 ```
-👤: tìm vé SG ra Hà Nội thứ 7 tuần này
+👤: tìm vé SG Hà Nội thứ 7 tuần này
+
 🤖: ✈️ Sài Gòn → Hà Nội
-    📅 2026-05-16 → 2026-05-21 (3 chuyến)
+    📅 2026-05-16 → 2026-05-21 (5 chuyến)
 
     🏆 1,450,000đ 06:00→08:05 (2h5)
        `Vietjet Air VJ123` · *Thẳng*
 
-    🥈 2,100,000đ 08:30→10:30 (2h0)
+    🥈 1,890,000đ 09:30→11:35 (2h5)
+       `Bamboo Airways QH201` · *Thẳng*
+
+    🥉 2,100,000đ 08:30→10:30 (2h0)
        `Vietnam Airlines VN123` · *Thẳng*
 
-    [🔍 Xem thêm trên Google Flights](https://...)
+    [🔍 Xem thêm trên Google Flights](https://google.com/travel/flights?...)
+```
+
+```
+👤: iPhone 16 giá bao nhiêu
+
+🤖: 🛒 iPhone 16 (6 kết quả)
+
+    🥇 *22,990,000đ* 🔥 — CellphoneS
+       ⭐⭐⭐⭐ 4.8 (2,341 đánh giá)
+       🔗 https://cellphones.com.vn/...
+
+    🥈 *23,500,000đ* — Thế Giới Di Động
+       ⭐⭐⭐⭐ 4.7 (1,890 đánh giá)
 ```
 
 ---
@@ -53,54 +74,69 @@
 ## 🧱 Tech stack
 
 ```
-┌──────────┐     ┌─────────────────────┐     ┌──────────────┐
-│ Telegram │ ←→ │  Claude Sonnet 4.6  │ ←→ │   SerpAPI    │
-│   Bot    │     │  Tool-use loop      │     │  (Flights +  │
-│          │     │  Prompt caching     │     │   Shopping)  │
-│          │     │  Adaptive thinking  │     └──────────────┘
-└──────────┘     └─────────────────────┘
-                          ↕
-                  ┌──────────────┐
-                  │ GitHub       │
-                  │ Actions      │
-                  │ (9AM daily)  │
-                  └──────────────┘
+┌──────────────┐     ┌──────────────────────────┐     ┌──────────────────┐
+│   Telegram   │ ←→  │     Claude Sonnet 4.6     │ ←→  │     SerpAPI      │
+│     Bot      │     │  · Multi-turn tool loop   │     │  · Google Flights│
+│              │     │  · Prompt caching         │     │  · Google Shopping│
+│  /start      │     │  · Adaptive thinking      │     └──────────────────┘
+│  /reset      │     │  · Session memory         │
+│  /uptime     │     └──────────────────────────┘
+└──────────────┘
+                      ┌──────────────────────────┐
+                      │      GitHub Actions       │
+                      │  · 9AM daily monitor      │
+                      │  · 4 tuyến bay cố định    │
+                      └──────────────────────────┘
 ```
 
-- **Telegram Bot** — python-telegram-bot v20+
-- **Claude Sonnet 4.6** — NLU + multi-turn tool-calling + prompt caching + adaptive thinking
-- **SerpAPI** — Google Flights + Google Shopping (250 free/tháng)
-- **Fly.io** — host 24/7 (free tier, region: Singapore)
-- **GitHub Actions** — daily cron 9AM Vietnam time
+| Thành phần | Chi tiết |
+|---|---|
+| **AI** | Claude Sonnet 4.6 — Anthropic API |
+| **Bot** | python-telegram-bot v20+ |
+| **Search** | SerpAPI — Google Flights + Google Shopping |
+| **Host** | Fly.io free tier, region Singapore |
+| **Scheduler** | GitHub Actions cron, 9AM Vietnam (UTC+7) |
+| **Language** | Python 3.11+ |
 
 ---
 
-## 🚀 Deploy 5 phút
+## 🚀 Deploy trong 5 phút
 
-1. **Fork repo** → `git clone https://github.com/thaolst/tara-bot`
-2. **Get API keys**:
-   - [@BotFather](https://t.me/botfather) → tạo bot → copy token
-   - [SerpAPI](https://serpapi.com) → sign up → copy key (250 free/tháng)
-   - [Anthropic API](https://console.anthropic.com/settings/keys) → copy key
-   - Telegram: lấy `TELEGRAM_CHAT_ID` của bạn qua [@userinfobot](https://t.me/userinfobot)
-3. **Deploy lên Fly.io**:
+### 1. Chuẩn bị API keys
+
+| Key | Lấy ở đâu | Free quota |
+|---|---|---|
+| `TELEGRAM_TOKEN` | [@BotFather](https://t.me/botfather) → `/newbot` | Không giới hạn |
+| `ALLOWED_USER_ID` | [@userinfobot](https://t.me/userinfobot) → `/start` | — |
+| `TELEGRAM_CHAT_ID` | Giống `ALLOWED_USER_ID` | — |
+| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com/settings/keys) | $5 free credit |
+| `SERPAPI_KEY` | [serpapi.com](https://serpapi.com) | 250 req/tháng |
+
+### 2. Deploy lên Fly.io
 
 ```bash
-fly launch --from Dockerfile
+git clone https://github.com/thaolst/tara-bot
+cd tara-bot
+
+fly auth login
+fly launch --from Dockerfile --name tara-bot-yourname
+
 fly secrets set \
   TELEGRAM_TOKEN=xxx \
   ANTHROPIC_API_KEY=xxx \
   SERPAPI_KEY=xxx \
   ALLOWED_USER_ID=xxx \
   TELEGRAM_CHAT_ID=xxx
+
 fly deploy
 ```
 
-4. **Bật daily monitor**:
-   - GitHub repo → Settings → Secrets → thêm `SERPAPI_KEY`, `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`
-   - Actions tab → **Flight Monitor** → enable workflow
+### 3. Bật daily monitor
 
-*Chi tiết: [DEPLOY.md](./DEPLOY.md)*
+- GitHub repo → **Settings → Secrets → Actions** → thêm 3 secrets: `SERPAPI_KEY`, `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`
+- **Actions tab** → **Flight Monitor** → Enable workflow
+
+*Chi tiết đầy đủ: [DEPLOY.md](./DEPLOY.md)*
 
 ---
 
@@ -110,40 +146,61 @@ fly deploy
 |---|---|---|
 | `ANTHROPIC_API_KEY` | ✅ | Anthropic API key |
 | `TELEGRAM_TOKEN` | ✅ | Telegram Bot token từ @BotFather |
-| `ALLOWED_USER_ID` | ✅ | Telegram user ID — bot chỉ phục vụ ID này |
+| `ALLOWED_USER_ID` | ✅ | Telegram user ID — chỉ ID này mới dùng được bot |
 | `SERPAPI_KEY` | ✅ | SerpAPI key cho Flights + Shopping |
-| `TELEGRAM_CHAT_ID` | ✅ | Chat ID nhận daily monitor alert |
-| `AFFILIATE_TEMPLATE` | ❌ | Template URL affiliate (chưa implement) |
+| `TELEGRAM_CHAT_ID` | ✅ | Chat ID nhận daily monitor (thường = ALLOWED_USER_ID) |
+| `AFFILIATE_TEMPLATE` | ❌ | Template URL affiliate (coming soon) |
 
 ---
 
 ## 📁 Cấu trúc
 
 ```
-src/
-├── bot.py              # Telegram bot — polling, session management, /reset, /uptime
-├── agents.py           # Claude agent — tool-use loop, prompt caching, adaptive thinking
-├── config.py           # Env config loader
-└── tools/
-    └── serpapi.py      # Flight search + Shopping search (SerpAPI)
-.github/workflows/
-└── monitor.yml         # Daily 9AM: check giá 4 tuyến SGN↔HAN/DAD/PQC → Telegram alert
+tara-bot/
+├── src/
+│   ├── bot.py          # Telegram bot — polling, session, /start /reset /uptime
+│   ├── agents.py       # Claude agent — tool loop, prompt caching, adaptive thinking
+│   ├── config.py       # Env config loader
+│   └── tools/
+│       └── serpapi.py  # Flight search + Shopping search
+├── scripts/
+│   └── monitor.py      # Daily price check — chạy bởi GitHub Actions
+├── .github/workflows/
+│   └── monitor.yml     # Cron 9AM Vietnam daily
+├── Dockerfile
+├── fly.toml            # Fly.io config — region Singapore, 1GB RAM
+├── DEPLOY.md
+└── CHANGELOG.md
 ```
+
+---
+
+## 💰 Chi phí
+
+| Service | Cost | Ghi chú |
+|---|---|---|
+| Fly.io | $0 | Free tier đủ dùng |
+| SerpAPI | $0 | 250 req/tháng free |
+| Anthropic | ~$0.50/tháng | Prompt caching giảm ~90% cost |
+| GitHub Actions | $0 | Public repo free |
+| **Tổng** | **~$0.50/tháng** | |
 
 ---
 
 ## 🗺️ Roadmap
 
-- [x] Flight search (SerpAPI + Google Flights link)
-- [x] Shopping price compare (SerpAPI)
+- [x] Flight search — top 5 chuyến, compact format, Google Flights link
+- [x] Shopping search — giá, rating, shop, link mua
 - [x] Daily price monitor 9AM (GitHub Actions)
-- [x] 24/7 Telegram bot (Fly.io, region Singapore)
-- [x] Prompt caching (tiết kiệm token cost)
-- [x] Adaptive thinking (extended thinking tự động)
-- [x] /reset và /uptime commands
-- [ ] Shopee price scraper
+- [x] 24/7 bot trên Fly.io (Singapore)
+- [x] Prompt caching — tiết kiệm token cost
+- [x] Adaptive thinking — extended thinking tự động
+- [x] Multi-turn tool loop (max 5 iter)
+- [x] Private mode (ALLOWED_USER_ID)
+- [x] /reset /uptime commands
 - [ ] Affiliate link injection đầy đủ
-- [ ] Auto-deal alert (notify khi deal tốt)
+- [ ] Shopee price scraper
+- [ ] Auto-deal alert (notify khi giá rẻ hơn ngưỡng)
 - [ ] Multi-user support
 
 ---
@@ -154,4 +211,4 @@ MIT — free to use, fork, modify.
 
 ---
 
-*Tara Bot — AI agent cá nhân, build public để chia sẻ, không phải product thương mại.*
+> *Tara Bot — build public để chia sẻ và học hỏi, không phải product thương mại.*

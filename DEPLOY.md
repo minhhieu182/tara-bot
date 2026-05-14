@@ -1,98 +1,101 @@
-# DEPLOY.md — Hướng dẫn setup tara-bot
+# DEPLOY.md — Hướng dẫn setup Tara Bot
 
-## 1. Tạo API keys
+---
 
-### 1.1 Telegram Bot Token
-- Mở Telegram, tìm `@BotFather`
-- Send `/newbot` → đặt tên → nhận token
-- Lưu token dạng: `123456:ABC-DEF1234`
+## 1. Chuẩn bị API keys
 
-### 1.2 Lấy Telegram User ID của bạn
-- Mở Telegram, tìm `@userinfobot`
-- Send `/start` → copy số ID (VD: `123456789`)
+### Telegram Bot Token
+1. Mở Telegram → tìm `@BotFather`
+2. Gửi `/newbot` → đặt tên → nhận token dạng `123456:ABC-DEF1234`
 
-### 1.3 SerpAPI Key
-- Vào https://serpapi.com
-- Sign up → Dashboard copy key
-- Free: 500 searches/tháng — đủ cho 1 bot + daily check
+### Telegram User ID
+1. Tìm `@userinfobot` → gửi `/start`
+2. Copy số ID (VD: `123456789`) — dùng cho cả `ALLOWED_USER_ID` và `TELEGRAM_CHAT_ID`
 
-### 1.4 Anthropic API Key
-- Vào https://console.anthropic.com/settings/keys
-- Create key (free $3 credit)
-- Dùng model `claude-sonnet-4-6`
+### SerpAPI Key
+- Vào [serpapi.com](https://serpapi.com) → sign up → copy key
+- Free: **250 searches/tháng** (đủ cho bot + daily monitor)
+
+### Anthropic API Key
+- Vào [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
+- Create key — model dùng: `claude-sonnet-4-6`
+- Free $5 credit khi đăng ký mới
 
 ---
 
 ## 2. Deploy lên Fly.io
 
-### 2.1 Cài Fly CLI
+### Cài Fly CLI
 ```bash
 # macOS
 brew install flyctl
 
-# Linux
+# Linux / WSL
 curl -L https://fly.io/install.sh | sh
 ```
 
-### 2.2 Login & launch
+### Launch và deploy
 ```bash
+git clone https://github.com/thaolst/tara-bot
 cd tara-bot
+
 fly auth login
 fly launch --from Dockerfile --name tara-bot-yourname
-```
 
-### 2.3 Set secrets
-```bash
 fly secrets set \
   TELEGRAM_TOKEN=your_bot_token \
   ANTHROPIC_API_KEY=your_anthropic_key \
   SERPAPI_KEY=your_serpapi_key \
-  ALLOWED_USER_ID=your_telegram_id
-```
+  ALLOWED_USER_ID=your_telegram_id \
+  TELEGRAM_CHAT_ID=your_telegram_id
 
-### 2.4 Deploy
-```bash
 fly deploy
 ```
 
-### 2.5 Check logs
+### Check logs
 ```bash
 fly logs
 ```
 
-Sau deploy, bot sẽ chạy 24/7. Mở Telegram → tìm tên bot → `/start`.
+Bot chạy 24/7 sau khi deploy. Mở Telegram → tìm tên bot → `/start`.
 
 ---
 
-## 3. Setup Daily Monitor (GitHub Actions)
+## 3. Bật Daily Monitor (GitHub Actions)
 
-Bot chat chạy trên Fly.io. Monitor chạy trên GitHub Actions (free).
+Monitor chạy độc lập trên GitHub Actions — **không** dùng Fly.io.
 
-### 3.1 Thêm secrets vào GitHub repo
-- Settings → Secrets and variables → Actions
-- Add:
+### Thêm secrets vào GitHub repo
+- Vào repo → **Settings → Secrets and variables → Actions**
+- Thêm 3 secrets:
   - `SERPAPI_KEY`
   - `TELEGRAM_TOKEN`
-  - `TELEGRAM_CHAT_ID` (user ID của bạn)
-  - `ANTHROPIC_API_KEY`
+  - `TELEGRAM_CHAT_ID`
 
-### 3.2 Enable workflow
-- Actions tab → "Flight Monitor" → Enable
-- Workflow chạy mỗi ngày 9:00 AM Vietnam time
+### Enable workflow
+- **Actions tab** → **Flight Monitor** → **Enable workflow**
+- Tự chạy mỗi ngày lúc **9:00 AM Vietnam** (UTC+7)
+- Hoặc chạy tay: Actions → Flight Monitor → **Run workflow**
+
+Monitor check 4 tuyến mặc định: SGN↔HAN, SGN↔DAD, SGN↔PQC, HAN→SGN.
+Muốn thay đổi tuyến → sửa `scripts/monitor.py`.
 
 ---
 
-## 4. Test
+## 4. Test sau deploy
 
-```bash
-# Gửi tin nhắn đến bot:
-/start
+```
+/start          — xem hướng dẫn
+/uptime         — kiểm tra bot đang chạy
 
-# Thử:
 tìm vé SG Hà Nội thứ 7
 iPhone 16 giá bao nhiêu
-so sánh giá máy lọc nước
+so sánh giá máy lọc không khí
+
+/reset          — xóa lịch sử chat
 ```
+
+---
 
 ## 5. Update
 
@@ -103,12 +106,12 @@ fly deploy
 
 ---
 
-## Budget
+## 6. Chi phí ước tính
 
 | Service | Cost | Ghi chú |
-|---------|------|---------|
-| Fly.io | $0 | Free tier: 3 VMs 256MB |
-| SerpAPI | $0 | Free: 500 req/tháng |
-| Claude (Anthropic) | $0 | Free $3 credit, ~$0.50/tháng |
-| GitHub Actions | $0 | Public repo free |
-| **Total** | **$0/tháng** | |
+|---|---|---|
+| Fly.io | $0 | Free tier: shared CPU 1GB RAM |
+| SerpAPI | $0 | 250 req/tháng free |
+| Anthropic | ~$0.50/tháng | Prompt caching giảm ~90% cost |
+| GitHub Actions | $0 | Public repo miễn phí |
+| **Tổng** | **~$0.50/tháng** | |
