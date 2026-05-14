@@ -1,5 +1,9 @@
 # TARA BOT 🤖✈️🛒
 
+[![Version](https://img.shields.io/badge/version-v2.0.0-brightgreen?style=flat-square)](https://github.com/thaolst/tara-bot/releases)
+[![GitHub stars](https://img.shields.io/github/stars/thaolst/tara-bot?style=flat-square&color=yellow)](https://github.com/thaolst/tara-bot/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/thaolst/tara-bot?style=flat-square&color=blue)](https://github.com/thaolst/tara-bot/network/members)
+
 **AI agent cá nhân trên Telegram — săn vé máy bay, so sánh giá, cào deal.**
 
 [![Deploy on Fly.io](https://img.shields.io/badge/deploy-fly.io-6a0dad?style=flat-square)](https://fly.io)
