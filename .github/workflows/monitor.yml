@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: "0 2 * * *"   # daily 9AM Vietnam time (UTC+7)
   workflow_dispatch:       # allow manual run
+  push:
+    branches: [main]       # run on every push to main để test
 
 jobs:
   monitor:
@@ -13,6 +15,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Check required secrets
+        run: |
+          if [ -z "${{ secrets.SERPAPI_KEY }}" ]; then
+            echo "❌ SERPAPI_KEY secret chưa được set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.TELEGRAM_TOKEN }}" ]; then
+            echo "❌ TELEGRAM_TOKEN secret chưa được set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.TELEGRAM_CHAT_ID }}" ]; then
+            echo "❌ TELEGRAM_CHAT_ID secret chưa được set"
+            exit 1
+          fi
+          echo "✅ All secrets OK"
 
       - name: Check flights
         env:
@@ -78,4 +96,5 @@ for dep, arr, label in routes:
         'text': msg,
         'parse_mode': 'Markdown',
     })
+    print(msg)
 "
